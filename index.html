@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>筆 · FUDE — sumi-e brush calligraphy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=cee23004">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="cb" content="cee23004">
+  <link rel="icon" type="image/svg+xml" href="cb-shapes/47.svg?v=cee23004">
+  <!-- PWA / installable -->
+  <link rel="manifest" href="manifest.json?v=cee23004">
+  <meta name="theme-color" content="#0c0b0a">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=cee23004">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="筆 FUDE">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <!-- version badge: 3 cache-bust shapes + token, top-left next to the name -->
+      <div class="cbbadge" title="build / cache-bust token — click token to copy">
+        <span id="cbShapes" class="cb-shapes"></span>
+      </div>
+      <div class="brandtext">
+        <div class="kicker">墨道 · sumi-e brush</div>
+        <h1>筆 <em>FUDE</em></h1>
+      </div>
+      <div class="buildstamp">
+        <span id="cbVersion">v0.1.0</span>
+        <span id="cbToken" class="tok">dev</span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input id="text" type="text" placeholder="kanji / kana / sentence…" autocomplete="off" spellcheck="false">
+      <button id="btnMode" title="writing direction">横書き</button>
+      <button id="btnAnim" title="animation order">順番</button>
+      <label class="sizectl" title="glyph size 字"><span>字</span><input id="size" type="range" min="80" max="520" step="2" value="0"></label>
+      <button id="tglNumbers" class="toggle-btn" title="stroke-order numbers">①②③</button>
+      <button id="tglSkel" class="toggle-btn" title="median skeleton">骨</button>
+      <button id="btnReplay" title="redraw">↺</button>
+      <button id="btnExport" title="export PNG — embeds the settings in the file">PNG</button>
+      <button id="btnExportT" title="export PNG (transparent) — embeds the settings">PNG⌀</button>
+      <button id="btnImport" title="import settings from a fude-made PNG">⤒値</button>
+      <input id="fileImport" type="file" accept="image/png" hidden>
+    </div>
+  </header>
+
+  <main class="show-browse">
+    <div class="stage" id="stage">
+      <div class="scroll">
+        <canvas id="gl"></canvas>
+        <canvas id="overlay" class="overlay"></canvas>
+        <div id="fallbacks" class="fallbacks"></div>
+      </div>
+    </div>
+    <nav class="mobile-tabs">
+      <button data-panel="browse" class="on">学習 · browse</button>
+      <button data-panel="brush">筆 · brush</button>
+    </nav>
+    <aside class="rail rail-left"><section id="browser"></section></aside>
+    <aside class="rail rail-right"><div id="controls"></div></aside>
+  </main>
+</div>
+<div id="pwaToast" class="pwa-toast" hidden></div>
+<script type="module" src="js/main.js?v=cee23004"></script>
+</body>
+</html>

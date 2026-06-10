@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>墨 · sumi-e brush — animCJK medians, ink in-shader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0b0a;          /* lacquer cabinet */
+    --bg2:#15130f;
+    --line:#2a2620;
+    --amber:#d9a14e;
+    --teal:#4fd0c4;
+    --txt:#cabfa9;
+    --txt-dim:#7d745f;
+    --washi:#e9e2cf;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:radial-gradient(120% 90% at 50% -10%, var(--bg2), var(--bg) 70%);
+    color:var(--txt);
+    font-family:"JetBrains Mono",monospace;
+    -webkit-font-smoothing:antialiased;
+    display:flex;flex-direction:column;
+    min-height:100%;
+  }
+  header{
+    padding:26px 30px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  header .glyph{
+    font-family:"EB Garamond",serif;
+    font-size:13px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--txt-dim);
+  }
+  header h1{
+    font-family:"EB Garamond",serif;
+    font-weight:400;font-size:27px;letter-spacing:.01em;
+    color:var(--washi);margin-top:3px;
+  }
+  header h1 em{color:var(--amber);font-style:italic}
+  header p{
+    font-size:11.5px;color:var(--txt-dim);margin-top:9px;max-width:62ch;line-height:1.65;
+  }
+  main{
+    flex:1;display:flex;gap:0;align-items:stretch;
+    min-height:0;
+  }
+  .stage{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    padding:30px;min-width:0;
+  }
+  .scroll{
+    position:relative;
+    width:min(72vh,100%);aspect-ratio:1/1;
+    background:var(--washi);
+    box-shadow:0 1px 0 #fffaf0 inset, 0 26px 60px -28px #000, 0 0 0 1px #000;
+    border-radius:2px;
+  }
+  .scroll canvas{display:block;width:100%;height:100%;border-radius:2px}
+  aside{
+    width:308px;flex-shrink:0;
+    border-left:1px solid var(--line);
+    background:linear-gradient(180deg,#100e0b,#0c0b0a);
+    padding:22px 22px 26px;
+    overflow-y:auto;
+  }
+  .group{margin-bottom:22px}
+  .group > .gh{
+    font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--txt-dim);margin-bottom:13px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .group > .gh::after{content:"";flex:1;height:1px;background:var(--line)}
+  .ctl{margin-bottom:15px}
+  .ctl label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:11px;margin-bottom:6px;
+  }
+  .ctl label .ja{color:var(--txt);font-size:12.5px}
+  .ctl label .en{color:var(--txt-dim);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+  .ctl label .val{color:var(--amber);font-variant-numeric:tabular-nums;font-size:11px}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:2px;
+    background:var(--line);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+    background:var(--washi);border:2px solid var(--amber);cursor:pointer;
+    margin-top:0;transition:transform .1s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;
+    background:var(--washi);border:2px solid var(--amber);cursor:pointer}
+  .row{display:flex;gap:9px}
+  button{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.06em;
+    background:transparent;color:var(--txt);border:1px solid var(--line);
+    padding:9px 12px;border-radius:2px;cursor:pointer;flex:1;
+    transition:border-color .15s,color .15s;
+  }
+  button:hover{border-color:var(--amber);color:var(--washi)}
+  button.on{border-color:var(--teal);color:var(--teal)}
+  .toggle{display:flex;align-items:center;gap:9px;font-size:11.5px;cursor:pointer;color:var(--txt);user-select:none}
+  .toggle .box{width:13px;height:13px;border:1px solid var(--line);border-radius:2px;display:grid;place-items:center;transition:.15s}
+  .toggle.on .box{border-color:var(--teal);background:var(--teal)}
+  .toggle.on .box::after{content:"";width:5px;height:5px;background:#0c0b0a}
+  .note{font-size:10px;color:var(--txt-dim);line-height:1.6;margin-top:4px}
+  .note b{color:var(--teal);font-weight:400}
+  @media (max-width:760px){
+    main{flex-direction:column}
+    aside{width:auto;border-left:none;border-top:1px solid var(--line)}
+    .stage{padding:18px}
+    .scroll{width:min(86vw,86vh)}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="glyph">墨 · sumi-e</div>
+  <h1>Ink synthesized in the fragment shader, drawn along <em>animCJK</em> medians</h1>
+  <p>The character 中 is reduced to four centerline polylines (the medians, exactly animCJK's source geometry). No ribbon mesh: every pixel measures its distance to the skeleton, and the brush is a width field thresholded against that distance — corners and caps fall out for free. Texture is domain-warped noise; the wavefront is one scalar per stroke.</p>
+</header>
+<main>
+  <div class="stage">
+    <div class="scroll"><canvas id="gl"></canvas></div>
+  </div>
+  <aside>
+    <div class="group">
+      <div class="gh">運筆 · the stroke</div>
+      <div class="row" style="margin-bottom:15px">
+        <button id="replay">↺ Replay</button>
+        <button id="loop" class="on">∞ Loop</button>
+      </div>
+      <div class="ctl"><label><span><span class="ja">速さ</span> <span class="en">speed</span></span><span class="val" id="vSpeed"></span></label><input type="range" id="speed" min="0.3" max="2.5" step="0.01"></div>
+      <div class="ctl"><label><span><span class="ja">筆幅</span> <span class="en">brush width</span></span><span class="val" id="vWidth"></span></label><input type="range" id="width" min="0.02" max="0.075" step="0.0005"></div>
+    </div>
+    <div class="group">
+      <div class="gh">墨色 · ink &amp; paper</div>
+      <div class="ctl"><label><span><span class="ja">濃淡</span> <span class="en">ink darkness</span></span><span class="val" id="vDark"></span></label><input type="range" id="dark" min="0.3" max="1" step="0.005"></div>
+      <div class="ctl"><label><span><span class="ja">紙肌</span> <span class="en">paper grain</span></span><span class="val" id="vGrain"></span></label><input type="range" id="grain" min="0" max="1.4" step="0.01"></div>
+    </div>
+    <div class="group">
+      <div class="gh">滲み・掠れ · ink behaviour</div>
+      <div class="ctl"><label><span><span class="ja">滲み</span> <span class="en">nijimi · bleed</span></span><span class="val" id="vBleed"></span></label><input type="range" id="bleed" min="0" max="0.05" step="0.0005"></div>
+      <div class="ctl"><label><span><span class="ja">掠れ</span> <span class="en">kasure · dry brush</span></span><span class="val" id="vKasure"></span></label><input type="range" id="kasure" min="0" max="1" step="0.01"></div>
+      <div class="ctl"><label><span><span class="ja">滲み際</span> <span class="en">edge warp</span></span><span class="val" id="vWarp"></span></label><input type="range" id="warp" min="0" max="0.03" step="0.0002"></div>
+    </div>
+    <div class="group">
+      <div class="gh">診断 · diagnostic</div>
+      <div class="toggle" id="skel"><span class="box"></span><span>Show median skeleton</span></div>
+      <p class="note">Teal lines are the raw animCJK medians. The ink is a field around them — that separation is the whole point: <b>geometry stays data, ink stays expressive.</b></p>
+    </div>
+  </aside>
+</main>
+
+<script type="module">
+// ---- animCJK medians for 中 (svgsJa/20013.svg), viewBox 0..1024, in stroke order ----
+const RAW = [
+  [[190,298],[232,337],[295,584]],                 // 1 · left vertical
+  [[262,311],[738,260],[784,305],[716,468]],       // 2 · top + right turn
+  [[314,526],[699,491],[773,502]],                 // 3 · bottom close
+  [[445,72],[515,120],[497,914]]                   // 4 · the spear
+];
+const NS = 24;                 // samples per stroke
+const SC = 0.84;               // fit margin
+
+// ---- Catmull-Rom resample to equal arc-length, carry normalized t ----
+const cr=(p0,p1,p2,p3,t)=>{const t2=t*t,t3=t2*t;const f=(a,b,c,d)=>0.5*(2*b+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3);return [f(p0[0],p1[0],p2[0],p3[0]),f(p0[1],p1[1],p2[1],p3[1])];};
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+
+function resample(raw){
+  const pts = raw.map(([x,y])=>[(x/1024-0.5)*SC+0.5,(y/1024-0.5)*SC+0.5]);
+  const P=[pts[0],...pts,pts[pts.length-1]];
+  const dense=[]; const STEPS=48;
+  for(let i=0;i<pts.length-1;i++){
+    for(let j=0;j<STEPS;j++) dense.push(cr(P[i],P[i+1],P[i+2],P[i+3],j/STEPS));
+  }
+  dense.push(pts[pts.length-1]);
+  const cum=[0];
+  for(let i=1;i<dense.length;i++) cum.push(cum[i-1]+dist(dense[i-1],dense[i]));
+  const total=cum[cum.length-1];
+  const out=[];
+  for(let k=0;k<NS;k++){
+    const target=(k/(NS-1))*total;
+    let i=1; while(i<cum.length-1 && cum[i]<target) i++;
+    const seg=Math.max(cum[i]-cum[i-1],1e-9);
+    const f=(target-cum[i-1])/seg;
+    out.push([
+      dense[i-1][0]+(dense[i][0]-dense[i-1][0])*f,
+      dense[i-1][1]+(dense[i][1]-dense[i-1][1])*f,
+      total<1e-9?0:target/total
+    ]);
+  }
+  return {samples:out,length:total};
+}
+
+const strokes = RAW.map(resample);
+const flatPts = new Float32Array(strokes.length*NS*3);
+strokes.forEach((s,si)=>s.samples.forEach((p,k)=>{
+  const o=(si*NS+k)*3; flatPts[o]=p[0]; flatPts[o+1]=p[1]; flatPts[o+2]=p[2];
+}));
+
+// stroke timing weighted by arc length, with a small lift between strokes
+const lift=0.10;
+const lens=strokes.map(s=>s.length);
+const sumL=lens.reduce((a,b)=>a+b,0);
+const durs=lens.map(l=>0.25+0.75*(l/sumL));         // base + length-weighted
+const dSum=durs.reduce((a,b)=>a+b,0);
+const starts=[]; let acc=0;
+durs.forEach((d,i)=>{starts.push(acc); acc+=d+lift;});
+const TOTAL=acc+0.4;                                 // + hold
+
+// ---- GL ----
+const cv=document.getElementById('gl');
+const gl=cv.getContext('webgl2',{antialias:true,alpha:false});
+if(!gl){document.querySelector('.scroll').innerHTML='<div style="padding:40px;font:13px monospace;color:#555">WebGL2 unavailable in this browser.</div>';}
+
+const VERT=`#version 300 es
+void main(){ vec2 p=vec2((gl_VertexID==2)?3.:-1., (gl_VertexID==1)?3.:-1.); gl_Position=vec4(p,0,1); }`;
+
+const FRAG=`#version 300 es
+precision highp float;
+out vec4 frag;
+uniform vec2 uRes;
+uniform vec3 uPts[${strokes.length*NS}];
+uniform float uProg[${strokes.length}];
+uniform float uWidth,uBleed,uKasure,uWarp,uDark,uGrain,uShowSkel,uTime;
+const int NS=${NS};
+const int NSTROKE=${strokes.length};
+
+float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);float a=hash(i),b=hash(i+vec2(1,0)),c=hash(i+vec2(0,1)),d=hash(i+vec2(1,1));vec2 u=f*f*(3.-2.*f);return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}
+float fbm(vec2 p){float s=0.,a=.5;mat2 m=mat2(1.6,1.2,-1.2,1.6);for(int i=0;i<5;i++){s+=a*vnoise(p);p=m*p;a*=.5;}return s;}
+
+void closest(vec2 p,int s,out float dmin,out float tmin,out float across){
+  dmin=1e9;tmin=0.;across=0.;
+  for(int k=0;k<NS-1;k++){
+    int i=s*NS+k;
+    vec3 A=uPts[i],B=uPts[i+1];
+    vec2 pa=p-A.xy, ba=B.xy-A.xy;
+    float h=clamp(dot(pa,ba)/max(dot(ba,ba),1e-8),0.,1.);
+    vec2 cp=A.xy+ba*h;
+    float dd=length(p-cp);
+    if(dd<dmin){dmin=dd;tmin=mix(A.z,B.z,h);across=(pa.x*ba.y-pa.y*ba.x)/max(length(ba),1e-6);}
+  }
+}
+float widthProfile(float t){
+  float entry=smoothstep(0.0,0.11,t);
+  float exit=1.0-0.72*smoothstep(0.80,1.0,t);
+  return entry*exit;
+}
+void main(){
+  vec2 uv=gl_FragCoord.xy/uRes;
+  vec2 p=vec2(uv.x,1.0-uv.y);            // image space, y-down (matches SVG)
+
+  // washi paper
+  float fiber=fbm(p*vec2(210.,11.))*.5+fbm(p*vec2(11.,210.))*.5;
+  float grain=fbm(p*430.);
+  vec3 col=vec3(0.913,0.886,0.812);
+  col-=(grain*0.05+fiber*0.045)*uGrain;
+  col-=0.018*smoothstep(0.4,1.15,length(uv-0.5)); // faint vignette into paper
+
+  vec3 inkBase=mix(vec3(0.26,0.23,0.205),vec3(0.035,0.03,0.025),uDark);
+  float gMin=1e9;
+
+  for(int s=0;s<NSTROKE;s++){
+    float d,t,across; closest(p,s,d,t,across);
+    gMin=min(gMin,d);
+    float prog=uProg[s];
+    if(prog<=0.0) continue;
+
+    float reveal=smoothstep(prog,prog-0.035,t);
+    if(reveal<=0.0) continue;
+
+    float w=uWidth*widthProfile(t);
+
+    // nijimi (bleed): wide soft halo, heavy warp, composited UNDER the core
+    if(uBleed>0.0001){
+      float bw=(fbm(p*8.5+vec2(float(s)*4.1,uTime*0.04))-0.5);
+      float bd=d+bw*uWarp*2.2;
+      float bleed=smoothstep(w+uBleed,w,bd)*reveal;
+      col=mix(col,inkBase,clamp(bleed,0.,1.)*0.32);
+    }
+
+    // organic edge warp on the core
+    float warp=(fbm(p*23.+vec2(float(s)*7.3,t*6.))-0.5);
+    float dw=d+warp*uWarp;
+    float cov=smoothstep(w,w-0.004,dw)*reveal;
+
+    // kasure (dry brush): streaks along stroke, drier toward the sweep-out
+    float dry=uKasure*(0.4+0.6*smoothstep(0.45,1.0,t));
+    float kn=fbm(vec2(t*52.,across*68.));
+    float edgeBias=smoothstep(0.35,1.0,d/max(w,1e-4));
+    float holes=smoothstep(0.55,0.78,kn)*dry + edgeBias*dry*0.55;
+    cov*=clamp(1.0-holes,0.,1.);
+
+    // density: darker at entry, mottled
+    float dens=mix(1.0,0.74,smoothstep(0.0,0.6,t));
+    dens*=0.84+0.32*fbm(p*38.+float(s)*3.);
+
+    col=mix(col,inkBase*dens,clamp(cov,0.,1.));
+  }
+
+  if(uShowSkel>0.5){
+    float sk=smoothstep(0.0035,0.0018,gMin);
+    col=mix(col,vec3(0.31,0.84,0.79),sk*0.92);
+  }
+  frag=vec4(col,1.0);
+}`;
+
+function sh(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(s));return s;}
+const prog=gl.createProgram();
+gl.attachShader(prog,sh(gl.VERTEX_SHADER,VERT));
+gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FRAG));
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog,gl.LINK_STATUS))console.error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const vao=gl.createVertexArray();gl.bindVertexArray(vao);
+
+const U={};
+['uRes','uProg','uWidth','uBleed','uKasure','uWarp','uDark','uGrain','uShowSkel','uTime']
+  .forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+U.uPts=gl.getUniformLocation(prog,'uPts[0]');
+gl.uniform3fv(U.uPts,flatPts);
+
+// ---- params + controls ----
+const P={speed:1.0,width:0.05,dark:0.86,grain:0.6,bleed:0.018,kasure:0.4,warp:0.012,skel:false,loop:true};
+const fmt=(v,d=2)=>v.toFixed(d);
+function bind(id,key,decimals){
+  const el=document.getElementById(id), out=document.getElementById('v'+id[0].toUpperCase()+id.slice(1));
+  el.value=P[key];
+  const set=()=>{P[key]=parseFloat(el.value); out.textContent=fmt(P[key],decimals);};
+  el.addEventListener('input',set); set();
+}
+bind('speed','speed',2);bind('width','width',3);bind('dark','dark',2);bind('grain','grain',2);
+bind('bleed','bleed',3);bind('kasure','kasure',2);bind('warp','warp',3);
+
+let t0=performance.now();
+const replay=()=>{t0=performance.now();};
+document.getElementById('replay').addEventListener('click',replay);
+const loopBtn=document.getElementById('loop');
+loopBtn.addEventListener('click',()=>{P.loop=!P.loop;loopBtn.classList.toggle('on',P.loop);if(P.loop)replay();});
+const skelEl=document.getElementById('skel');
+skelEl.addEventListener('click',()=>{P.skel=!P.skel;skelEl.classList.toggle('on',P.skel);});
+
+// ---- resize (square, DPR-aware) ----
+function resize(){
+  const r=cv.getBoundingClientRect();
+  const dpr=Math.min(devicePixelRatio||1,2);
+  const s=Math.max(1,Math.round(r.width*dpr));
+  if(cv.width!==s){cv.width=s;cv.height=s;}
+  gl.viewport(0,0,cv.width,cv.height);
+}
+new ResizeObserver(resize).observe(cv); resize();
+
+// ---- loop ----
+const progArr=new Float32Array(strokes.length);
+function frame(now){
+  let e=(now-t0)/1000*P.speed;
+  if(P.loop && e>TOTAL) {t0=now; e=0;}
+  for(let i=0;i<strokes.length;i++){
+    progArr[i]=Math.max(0,Math.min(1,(e-starts[i])/durs[i]));
+  }
+  gl.uniform2f(U.uRes,cv.width,cv.height);
+  gl.uniform1fv(U.uProg,progArr);
+  gl.uniform1f(U.uWidth,P.width);
+  gl.uniform1f(U.uBleed,P.bleed);
+  gl.uniform1f(U.uKasure,P.kasure);
+  gl.uniform1f(U.uWarp,P.warp);
+  gl.uniform1f(U.uDark,P.dark);
+  gl.uniform1f(U.uGrain,P.grain);
+  gl.uniform1f(U.uShowSkel,P.skel?1:0);
+  gl.uniform1f(U.uTime,(now-t0)/1000);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Deban project memory — local working memory, not a published artifact
+.deban/
+
+# Raw source corpora (large; re-fetched by tools/build-data.mjs)
+tools/.cache/
+
+# OS / editor noise
+.DS_Store
+*.swp
+node_modules/
+
+# cache-bust sed backups
+*.cbbak
