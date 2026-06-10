@@ -106,14 +106,16 @@ float widthProfile(float t, float term){
   return entry * exitProfile(t, term);
 }
 
-// Evaluate stroke s at p and return the segment giving the MOST coverage (width-aware),
-// not merely the nearest. Where a stroke crosses itself a full-width part then wins over a
-// nearby tapering part — no false pinch/endpoint at the intersection. Falls back to the
-// nearest segment outside the core (for the bleed halo), and reports min distance (skeleton).
+// Evaluate stroke s at p and pick the segment where p sits DEEPEST inside (max signed
+// clearance wEff-dd). For a normal stroke this is just the nearest segment → its t varies
+// smoothly, so the warp/texture stays continuous (no beading). At a self-crossing the wider
+// body segment outranks a nearby tapering one (its clearance is larger) → no false pinch.
+// Clearance is monotonic and never saturates, unlike a coverage smoothstep. Reports whether
+// p is inside the core (oinside) and the min distance (skeleton). Only considers revealed
+// segments so the stroke draws in stroke order.
 void bestSeg(vec2 p, int s, float term, float prog,
-             out float od, out float ot, out float oa, out float owEff, out float ocov, out float ogmin){
-  ocov=0.; od=1e9; ot=0.; oa=0.; owEff=1e-4; ogmin=1e9;
-  float mind=1e9, mt=0., ma=0., mwEff=1e-4;
+             out float od, out float ot, out float oa, out float owEff, out float oinside, out float ogmin){
+  float bestClr = -1e30; od=1e9; ot=0.; oa=0.; owEff=1e-4; ogmin=1e9; oinside=0.;
   int base = uAtlasBase + s;
   for(int k=0;k<NS-1;k++){
     vec3 A = texelFetch(uAtlas, ivec2(k,   base), 0).xyz;
@@ -123,16 +125,16 @@ void bestSeg(vec2 p, int s, float term, float prog,
     float dd = length(p-(A.xy+ba*h));
     ogmin = min(ogmin, dd);
     float tt = mix(A.z,B.z,h);
-    float across = (pa.x*ba.y - pa.y*ba.x)/max(length(ba),1e-6);
     float reveal = 1.0 - smoothstep(prog-0.035, prog, tt);
+    if(reveal <= 0.0) continue;                                      // not yet drawn
+    float across = (pa.x*ba.y - pa.y*ba.x)/max(length(ba),1e-6);
     float pres = 1.0 + uPressure*(0.55*sin(3.14159*tt) - 0.12);
     float w = uWidth * widthProfile(tt, term) * pres;
     float wEff = w * (1.0 + uSideTip*0.55*clamp(across/max(w,1e-4), -1.0, 1.0));
-    float cov = (1.0 - smoothstep(wEff-0.004, wEff, dd)) * reveal;   // cheap (no warp) for selection
-    if(dd < mind){ mind=dd; mt=tt; ma=across; mwEff=wEff; }
-    if(cov > ocov){ ocov=cov; od=dd; ot=tt; oa=across; owEff=wEff; }
+    float clr = wEff - dd;                                           // signed clearance (monotonic)
+    if(clr > bestClr){ bestClr=clr; od=dd; ot=tt; oa=across; owEff=wEff; }
   }
-  if(ocov<=0.0){ od=mind; ot=mt; oa=ma; owEff=mwEff; }              // outside the core → nearest (halo)
+  oinside = bestClr > 0.0 ? 1.0 : 0.0;
 }
 
 void main(){
@@ -145,11 +147,12 @@ void main(){
     if(s>=uStrokeCount) break;
     float prog = uProg[s];
     float term = uTermClass[s];
-    // pick the most-covering segment (width-aware) so self-crossings don't pinch
-    float d,t,across,wEff,bcov,gm;
-    bestSeg(p, s, term, prog, d, t, across, wEff, bcov, gm);
+    // pick the segment p sits deepest inside (width-aware) so self-crossings don't pinch
+    float d,t,across,wEff,inside,gm;
+    bestSeg(p, s, term, prog, d, t, across, wEff, inside, gm);
     gMin = min(gMin, gm);
-    if(bcov<=0.0 && uBleed<=0.0001) continue;     // fully outside the stroke & no halo to draw
+    if(d > 1e8) continue;                          // nothing revealed on this stroke at p
+    if(inside < 0.5 && uBleed <= 0.0001) continue; // outside the core & no halo to draw
     float reveal = 1.0 - smoothstep(prog-0.035, prog, t);
 
     // --- ink-load depletion: wet at 起筆, drying toward 収筆 ---
